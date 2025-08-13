@@ -56,6 +56,8 @@ class WhatsAppService {
     });
 
     this.setupEventHandlers();
+    this.startTime = Date.now();
+    this.client.initialize();
   }
 
   private setupEventHandlers(): void {
@@ -63,6 +65,7 @@ class WhatsAppService {
 
     
     this.client.on("qr", (qr: string) => {
+      console.log("\n📲 Escaneie o QR code abaixo com o WhatsApp:\n");
       qrcode.generate(qr, { small: true });
     });
 
