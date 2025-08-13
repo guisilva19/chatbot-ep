@@ -1,4 +1,3 @@
-import dotenv from "dotenv";
 import { Client, LocalAuth, Message as WhatsAppMessage } from "whatsapp-web.js";
 import qrcode from "qrcode-terminal";
 import MessageModel from "../models/Message";
@@ -22,11 +21,6 @@ class WhatsAppService {
   }
 
   start(): void {
-    const startTime = Date.now();
-    console.log("🔄 Iniciando WhatsApp client...");
-    
-    const clientStartTime = Date.now();
-    console.log("📱 Criando WhatsApp client...");
     this.client = new Client({
       authStrategy: new LocalAuth(),
       puppeteer: {
@@ -60,63 +54,29 @@ class WhatsAppService {
         ignoreHTTPSErrors: true
       }
     });
-    const clientTime = Date.now() - clientStartTime;
-    console.log(`✅ Client criado em ${clientTime}ms`);
 
-    const handlersStartTime = Date.now();
-    console.log("⚙️ Configurando event handlers...");
     this.setupEventHandlers();
-    const handlersTime = Date.now() - handlersStartTime;
-    console.log(`✅ Event handlers configurados em ${handlersTime}ms`);
-    
-    const initStartTime = Date.now();
-    console.log("🚀 Inicializando client...");
-    this.client.initialize();
-    const initTime = Date.now() - initStartTime;
-    console.log(`✅ Client inicializado em ${initTime}ms`);
-    
-    // Timer para medir tempo total
-    this.startTime = startTime;
-    const totalInitTime = Date.now() - startTime;
-    console.log(`⏱️ Tempo total de inicialização: ${totalInitTime}ms (${(totalInitTime/1000).toFixed(2)}s)`);
   }
 
   private setupEventHandlers(): void {
     if (!this.client) return;
 
-    console.log("📡 Configurando eventos do WhatsApp...");
     
     this.client.on("qr", (qr: string) => {
-      console.log("🔍 Evento QR detectado!");
-      const qrTime = Date.now();
-      const totalTime = qrTime - this.startTime;
-      console.log(`📱 QR Code gerado em ${totalTime}ms (${(totalTime/1000).toFixed(2)}s):`);
       qrcode.generate(qr, { small: true });
     });
 
     this.client.on("ready", () => {
-      const readyTime = Date.now();
-      const totalTime = readyTime - this.startTime;
-      console.log(`✅ Conectado ao WhatsApp em ${totalTime}ms (${(totalTime/1000).toFixed(2)}s)!`);
       this.isReady = true;
     });
 
     this.client.on("loading_screen", (percent: number, message: string) => {
-      const loadingTime = Date.now();
-      const totalTime = loadingTime - this.startTime;
-      console.log(`⏳ Carregando ${percent}% - ${message} (${totalTime}ms)`);
     });
 
     this.client.on("authenticated", () => {
       const authTime = Date.now();
       const totalTime = authTime - this.startTime;
       console.log(`🔐 Autenticado com sucesso em ${totalTime}ms (${(totalTime/1000).toFixed(2)}s)!`);
-    });
-
-    this.client.on("auth_failure", (msg: string) => {
-      const failTime = Date.now();
-      const totalTime = failTime - this.startTime;
-      console.log(`❌ Falha na autenticação em ${totalTime}ms: ${msg}`);
     });
 
     this.client.on("message", async (msg: WhatsAppMessage) => {
@@ -131,17 +91,14 @@ class WhatsAppService {
     });
 
     this.client.on("disconnected", (reason: string) => {
-      console.log("❌ WhatsApp desconectado:", reason);
       this.isReady = false;
     });
 
     // Eventos adicionais para debug
     this.client.on("change_state", (state: string) => {
-      console.log(`🔄 Estado do cliente mudou para: ${state}`);
     });
 
     this.client.on("incoming_call", (call: any) => {
-      console.log("📞 Chamada recebida");
     });
 
     this.client.on("open", () => {
@@ -152,7 +109,6 @@ class WhatsAppService {
       console.log("🔒 Cliente fechado");
     });
 
-    console.log("✅ Event handlers configurados");
   }
 
   private async handleIncomingMessage(msg: WhatsAppMessage): Promise<void> {
@@ -180,7 +136,6 @@ class WhatsAppService {
       }
 
     } catch (error) {
-      console.error("Erro ao processar mensagem:", error);
     }
   }
 
@@ -206,7 +161,6 @@ class WhatsAppService {
 
   async sendMessage(number: string, message: string): Promise<boolean> {
     if (!this.client || !this.isReady) {
-      console.error("WhatsApp client não está pronto");
       return false;
     }
 
@@ -217,28 +171,10 @@ class WhatsAppService {
       // Salva mensagem enviada no banco
       await this.messageModel.create(number, message, false);
       
-      console.log(`✅ Mensagem enviada para ${number}: ${message}`);
       return true;
     } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
       return false;
     }
-  }
-
-  async sendButtons(number: string): Promise<boolean> {
-    const buttons = [
-      { body: "1️⃣ - Falar com atendente" },
-      { body: "2️⃣ - Ver produtos" },
-      { body: "3️⃣ - Falar sobre preços" },
-      { body: "4️⃣ - Outras opções" }
-    ];
-
-    let message = "Escolha uma opção:\n\n";
-    buttons.forEach((button) => {
-      message += `${button.body}\n`;
-    });
-
-    return await this.sendMessage(number, message);
   }
 
   getClient(): Client | null {
