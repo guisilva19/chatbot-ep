@@ -1,6 +1,5 @@
 import { Client, LocalAuth, Message as WhatsAppMessage } from "whatsapp-web.js";
 import qrcode from "qrcode-terminal";
-import MessageModel from "../models/Message";
 
 interface PendingMessage {
   id: number;
@@ -11,16 +10,11 @@ interface PendingMessage {
 
 class WhatsAppService {
   private client: Client | null = null;
-  private messageModel: MessageModel;
   private pendingMessages: PendingMessage[] = [];
   private isReady: boolean = false;
   private startTime: number = 0;
   private blockedContacts: Map<string, number> = new Map(); // número -> timestamp do bloqueio
 
-
-  constructor() {
-    this.messageModel = new MessageModel();
-  }
 
   start(): void {
     this.client = new Client({
@@ -107,14 +101,7 @@ class WhatsAppService {
       return;
     }
 
-    try {
-      // Salva mensagem no banco
-      await this.messageModel.create(numberE164, messageText, true);
-
       await this.handleEpMessage(numberE164, messageText);
-
-    } catch (error) {
-    }
   }
 
   private async handleOwnMessage(msg: WhatsAppMessage): Promise<void> {
@@ -144,7 +131,7 @@ class WhatsAppService {
       await this.sendMessage(number, autoResponse);
 
     } catch (error) {
-      console.error("Erro ao processar mensagem 'ep':", error);
+      console.error("Erro ao processar mensagem:", error);
     }
   }
 
@@ -162,40 +149,6 @@ class WhatsAppService {
       return true;
     } catch (error) {
       return false;
-    }
-  }
-
-  getClient(): Client | null {
-    return this.client;
-  }
-
-  isClientReady(): boolean {
-    return this.isReady;
-  }
-
-  getPendingMessages(): PendingMessage[] {
-    return this.pendingMessages;
-  }
-
-  markMessageAsResponded(messageId: number): void {
-    this.pendingMessages = this.pendingMessages.filter(msg => msg.id !== messageId);
-  }
-
-  async getConversationHistory(number: string) {
-    try {
-      return await this.messageModel.getByNumber(number);
-    } catch (error) {
-      console.error("Erro ao buscar histórico:", error);
-      return [];
-    }
-  }
-
-  async getAllConversations() {
-    try {
-      return await this.messageModel.getConversations();
-    } catch (error) {
-      console.error("Erro ao buscar conversas:", error);
-      return [];
     }
   }
 
@@ -262,9 +215,6 @@ class WhatsAppService {
   async stop(): Promise<void> {
     if (this.client) {
       this.client.destroy();
-    }
-    if (this.messageModel) {
-      await this.messageModel.close();
     }
   }
 }
