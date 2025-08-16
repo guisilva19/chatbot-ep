@@ -126,20 +126,7 @@ class WhatsAppService {
     const isFromBot = messageText.endsWith("\u200B");
     
     if (!isFromBot) {
-      // Esta mensagem foi enviada manualmente pelo celular
-      console.log(`📱 Mensagem MANUAL enviada para ${numberE164}: ${messageText}`);
-      
-      // Bloqueia bot para este contato por 1 hora
       this.blockContact(numberE164);
-      
-      try {
-        // Salva mensagem manual no banco como não sendo do cliente (isFromClient = false)
-        await this.messageModel.create(numberE164, messageText, false);
-      } catch (error) {
-        console.error("❌ Erro ao salvar mensagem manual:", error);
-      }
-    } else {
-      console.log(`🤖 Mensagem do BOT detectada para ${numberE164}`);
     }
   }
 
@@ -153,10 +140,6 @@ class WhatsAppService {
         return;
       }
 
-      // Cria conversa se for nova
-      await this.messageModel.createConversation(number, messageText);
-
-      // Envia resposta automática
       const autoResponse = "Opa, baauuum dms? 😎\n\nO que você gostaria de fazer?";
       await this.sendMessage(number, autoResponse);
 
@@ -172,13 +155,9 @@ class WhatsAppService {
 
     try {
       const chatId = `${number.replace("+", "")}@c.us`;
-      // Adiciona marca invisível para identificar mensagens do bot
-      const messageWithBotTag = message + "\u200B"; // Zero Width Space - invisível
+      const messageWithBotTag = message + "\u200B"; 
       
       await this.client.sendMessage(chatId, messageWithBotTag);
-
-      // Salva mensagem enviada no banco (sem a marca invisível)
-      await this.messageModel.create(number, message, false);
 
       return true;
     } catch (error) {
