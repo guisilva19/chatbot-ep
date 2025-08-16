@@ -15,6 +15,8 @@ class WhatsAppService {
   private pendingMessages: PendingMessage[] = [];
   private isReady: boolean = false;
   private startTime: number = 0;
+  private blockedContacts: Map<string, number> = new Map(); // número -> timestamp do bloqueio
+
 
   constructor() {
     this.messageModel = new MessageModel();
@@ -99,8 +101,6 @@ class WhatsAppService {
     const messageText = msg.body;
     const numberE164 = `+${rawNumber.replace("@c.us", "")}`;
 
-    console.log("🔍 Mensagem recebida:", msg);
-
     // Ignora mensagens de grupo
     const isGroup = rawNumber.includes("@g.us");
     if (isGroup) {
@@ -111,9 +111,6 @@ class WhatsAppService {
       // Salva mensagem no banco
       await this.messageModel.create(numberE164, messageText, true);
 
-      console.log(`📱 Nova mensagem de ${numberE164}: ${messageText}`);
-
-      // Verifica se é mensagem "ep"
       await this.handleEpMessage(numberE164, messageText);
 
     } catch (error) {
@@ -121,13 +118,41 @@ class WhatsAppService {
   }
 
   private async handleOwnMessage(msg: WhatsAppMessage): Promise<void> {
-    console.log("🔍 Mensagem recebida:", msg);
+    const rawNumber = msg.to;
+    const messageText = msg.body;
+    const numberE164 = `+${rawNumber.replace("@c.us", "")}`;
+    
+    // Verifica se a mensagem tem a marca do bot (Zero Width Space no final)
+    const isFromBot = messageText.endsWith("\u200B");
+    
+    if (!isFromBot) {
+      // Esta mensagem foi enviada manualmente pelo celular
+      console.log(`📱 Mensagem MANUAL enviada para ${numberE164}: ${messageText}`);
+      
+      // Bloqueia bot para este contato por 1 hora
+      this.blockContact(numberE164);
+      
+      try {
+        // Salva mensagem manual no banco como não sendo do cliente (isFromClient = false)
+        await this.messageModel.create(numberE164, messageText, false);
+      } catch (error) {
+        console.error("❌ Erro ao salvar mensagem manual:", error);
+      }
+    } else {
+      console.log(`🤖 Mensagem do BOT detectada para ${numberE164}`);
+    }
   }
 
-  private async handleEpMessage(number: string, messageText: string): Promise<void> {
-    console.log(`🆕 Mensagem "ep" detectada de ${number}`);
 
+
+  private async handleEpMessage(number: string, messageText: string): Promise<void> {
     try {
+      // Verifica se o contato está bloqueado
+      if (this.isContactBlocked(number)) {
+        console.log(`🚫 Bot bloqueado para ${number} - mensagem ignorada`);
+        return;
+      }
+
       // Cria conversa se for nova
       await this.messageModel.createConversation(number, messageText);
 
@@ -147,9 +172,12 @@ class WhatsAppService {
 
     try {
       const chatId = `${number.replace("+", "")}@c.us`;
-      await this.client.sendMessage(chatId, message);
+      // Adiciona marca invisível para identificar mensagens do bot
+      const messageWithBotTag = message + "\u200B"; // Zero Width Space - invisível
+      
+      await this.client.sendMessage(chatId, messageWithBotTag);
 
-      // Salva mensagem enviada no banco
+      // Salva mensagem enviada no banco (sem a marca invisível)
       await this.messageModel.create(number, message, false);
 
       return true;
@@ -190,6 +218,66 @@ class WhatsAppService {
       console.error("Erro ao buscar conversas:", error);
       return [];
     }
+  }
+
+  // Bloqueia o bot para um contato por 1 hora
+  private blockContact(number: string): void {
+    const blockTime = Date.now();
+    this.blockedContacts.set(number, blockTime);
+    console.log(`🚫 Bot bloqueado para ${number} por 1 hora`);
+    
+    // Remove o bloqueio após 1 hora
+    setTimeout(() => {
+      this.blockedContacts.delete(number);
+      console.log(`✅ Bot desbloqueado para ${number}`);
+    }, 60 * 60 * 1000); // 1 hora em millisegundos
+  }
+
+  // Verifica se um contato está bloqueado
+  private isContactBlocked(number: string): boolean {
+    if (!this.blockedContacts.has(number)) {
+      return false;
+    }
+
+    const blockTime = this.blockedContacts.get(number)!;
+    const currentTime = Date.now();
+    const oneHour = 60 * 60 * 1000; // 1 hora em millisegundos
+
+    // Se passou mais de 1 hora, remove o bloqueio
+    if (currentTime - blockTime > oneHour) {
+      this.blockedContacts.delete(number);
+      return false;
+    }
+
+    return true;
+  }
+
+  // Método público para desbloquear um contato manualmente
+  unblockContact(number: string): boolean {
+    if (this.blockedContacts.has(number)) {
+      this.blockedContacts.delete(number);
+      console.log(`✅ Bot desbloqueado manualmente para ${number}`);
+      return true;
+    }
+    return false;
+  }
+
+  // Método público para verificar contatos bloqueados
+  getBlockedContacts(): { number: string, blockedAt: Date, remainingTime: string }[] {
+    const currentTime = Date.now();
+    const oneHour = 60 * 60 * 1000;
+    
+    return Array.from(this.blockedContacts.entries()).map(([number, blockTime]) => {
+      const elapsed = currentTime - blockTime;
+      const remaining = oneHour - elapsed;
+      const remainingMinutes = Math.ceil(remaining / (60 * 1000));
+      
+      return {
+        number,
+        blockedAt: new Date(blockTime),
+        remainingTime: `${remainingMinutes} minutos`
+      };
+    });
   }
 
   async stop(): Promise<void> {

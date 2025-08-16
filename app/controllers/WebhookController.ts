@@ -48,10 +48,9 @@ class WebhookController {
       const chatId = `${whatsappNumber.replace("+", "")}@c.us`;
 
       try {
-        const client = this.whatsappService.getClient();
-
-        if (client && this.whatsappService.isClientReady()) {
-          await client.sendMessage(chatId, messageContent);
+        if (this.whatsappService.isClientReady()) {
+          // Usa o método sendMessage do service que já marca como mensagem do bot
+          await this.whatsappService.sendMessage(whatsappNumber, messageContent);
           console.log(`✅ Mensagem enviada via webhook para ${whatsappNumber}: ${messageContent}`);
         } else {
           console.error("❌ WhatsApp client não está pronto para enviar mensagem via webhook");
