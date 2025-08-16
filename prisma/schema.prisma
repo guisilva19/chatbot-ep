@@ -13,6 +13,8 @@ model Message {
   message      String
   timestamp    DateTime @default(now())
   isFromClient Boolean  @default(true) @map("is_from_client")
+  isBot        Boolean  @default(true) @map("is_bot")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("messages")
 }

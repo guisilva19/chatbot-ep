@@ -3,6 +3,7 @@ import express from "express";
 
 // Importar serviços
 import WhatsAppService from "./services/WhatsAppService";
+import CleanerService from "./services/CleanerService";
 
 // Importar rotas
 import createWebRoutes from "./routes/webRoutes";
@@ -17,17 +18,19 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Inicializar serviço WhatsApp
+// Inicializar serviços
 const whatsappService = new WhatsAppService();
+const cleanerService = new CleanerService();
 
 // Inicializar rotas
-const webRoutes = createWebRoutes(whatsappService);
+const webRoutes = createWebRoutes(whatsappService, cleanerService);
 
 // Montar rotas
 app.use("/", webRoutes);
 
-// Iniciar WhatsApp client
+// Iniciar serviços
 whatsappService.start();
+cleanerService.start();
 
 // Iniciar servidor
 app.listen(PORT, () => {
@@ -35,14 +38,16 @@ app.listen(PORT, () => {
 });
 
 // Graceful shutdown
-process.on("SIGINT", () => {
+process.on("SIGINT", async () => {
   console.log("\n🛑 Encerrando aplicação...");
   whatsappService.stop();
+  await cleanerService.close();
   process.exit(0);
 });
 
-process.on("SIGTERM", () => {
+process.on("SIGTERM", async () => {
   console.log("\n🛑 Encerrando aplicação...");
   whatsappService.stop();
+  await cleanerService.close();
   process.exit(0);
 }); 
