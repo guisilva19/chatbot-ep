@@ -27,31 +27,11 @@ class WhatsAppService {
         headless: true,
         args: [
           "--no-sandbox",
-          "--disable-setuid-sandbox", 
+          "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
-          "--disable-gpu",
-          "--disable-web-security",
-          "--disable-features=VizDisplayCompositor",
-          "--disable-extensions",
-          "--disable-plugins",
-          "--disable-default-apps",
-          "--disable-sync",
-          "--disable-translate",
-          "--no-first-run",
-          "--no-default-browser-check",
-          "--hide-scrollbars",
-          "--mute-audio",
-          "--disable-accelerated-2d-canvas",
-          "--no-zygote",
-          "--single-process",
-          "--disable-background-timer-throttling",
-          "--disable-backgrounding-occluded-windows",
-          "--disable-renderer-backgrounding",
-          "--disable-ipc-flooding-protection"
+          "--disable-gpu"
         ],
-        timeout: 60000,
-        ignoreDefaultArgs: ['--disable-extensions'],
-        ignoreHTTPSErrors: true
+        timeout: 60000
       }
     });
 
@@ -63,7 +43,7 @@ class WhatsAppService {
   private setupEventHandlers(): void {
     if (!this.client) return;
 
-    
+
     this.client.on("qr", (qr: string) => {
       console.log("\n📲 Escaneie o QR code abaixo com o WhatsApp:\n");
       qrcode.generate(qr, { small: true });
@@ -79,7 +59,7 @@ class WhatsAppService {
     this.client.on("authenticated", () => {
       const authTime = Date.now();
       const totalTime = authTime - this.startTime;
-      console.log(`🔐 Autenticado com sucesso em ${totalTime}ms (${(totalTime/1000).toFixed(2)}s)!`);
+      console.log(`🔐 Autenticado com sucesso em ${totalTime}ms (${(totalTime / 1000).toFixed(2)}s)!`);
     });
 
     this.client.on("message", async (msg: WhatsAppMessage) => {
@@ -134,9 +114,7 @@ class WhatsAppService {
       console.log(`📱 Nova mensagem de ${numberE164}: ${messageText}`);
 
       // Verifica se é mensagem "ep"
-      if (messageText.toLowerCase().trim() === "ep") {
-        await this.handleEpMessage(numberE164, messageText);
-      }
+      await this.handleEpMessage(numberE164, messageText);
 
     } catch (error) {
     }
@@ -148,7 +126,7 @@ class WhatsAppService {
 
   private async handleEpMessage(number: string, messageText: string): Promise<void> {
     console.log(`🆕 Mensagem "ep" detectada de ${number}`);
-    
+
     try {
       // Cria conversa se for nova
       await this.messageModel.createConversation(number, messageText);
@@ -156,7 +134,7 @@ class WhatsAppService {
       // Envia resposta automática
       const autoResponse = "Opa, baauuum dms? 😎\n\nO que você gostaria de fazer?";
       await this.sendMessage(number, autoResponse);
-      
+
     } catch (error) {
       console.error("Erro ao processar mensagem 'ep':", error);
     }
@@ -170,10 +148,10 @@ class WhatsAppService {
     try {
       const chatId = `${number.replace("+", "")}@c.us`;
       await this.client.sendMessage(chatId, message);
-      
+
       // Salva mensagem enviada no banco
       await this.messageModel.create(number, message, false);
-      
+
       return true;
     } catch (error) {
       return false;

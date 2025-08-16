@@ -1,0 +1,19 @@
+{
+  "watch": ["app/**/*"],
+  "ext": "ts,js,json", 
+  "ignore": [
+    ".wwebjs_auth/**",
+    ".wwebjs_cache/**",
+    "node_modules/**",
+    "dist/**",
+    "*.log",
+    "*.pid",
+    ".git/**",
+    "prisma/migrations/**"
+  ],
+  "delay": 1000,
+  "exec": "ts-node ./app/server.ts",
+  "env": {
+    "NODE_ENV": "development"
+  }
+}
