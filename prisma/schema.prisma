@@ -7,23 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Message {
-  id           String   @id @default(uuid()) @db.Uuid
-  number       String   @db.VarChar(20)
-  message      String
-  timestamp    DateTime @default(now())
-  isFromClient Boolean  @default(true) @map("is_from_client")
-  isBot        Boolean  @default(true) @map("is_bot")
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  @@map("messages")
-}
-
 model Conversation {
-  id           String   @id @default(uuid()) @db.Uuid
-  number       String   @unique @db.VarChar(20)
-  firstMessage String   @map("first_message")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id           String              @id @default(uuid()) @db.Uuid
+  number       String              @unique @db.VarChar(20)
+  firstMessage String              @map("first_message")
+  state        ConversationState   @default(INITIAL)
+  waitingFor   String?             @map("waiting_for") // que tipo de resposta esperamos
+  userData     Json?               @map("user_data") // dados coletados do usuário
+  lastActivity DateTime            @default(now()) @map("last_activity")
+  createdAt    DateTime            @default(now()) @map("created_at")
 
   @@map("conversations")
+}
+
+enum ConversationState {
+  INITIAL           // Estado inicial - primeira mensagem
+  WAITING_OPTION    // Aguardando seleção do menu principal
+  OPTION_1_DETAILS  // Coletando detalhes para energia solar residencial
+  OPTION_2_DETAILS  // Coletando detalhes para poço artesiano
+  OPTION_3_DETAILS  // Coletando detalhes para usinas de investimento
+  OPTION_4_DETAILS  // Coletando detalhes para financiamento
+  OPTION_5_DETAILS  // Coletando detalhes para suporte técnico
+  FORWARDED_TO_HUMAN // Encaminhado para atendente humano
+  COMPLETED         // Conversa finalizada
 }

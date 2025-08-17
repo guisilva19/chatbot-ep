@@ -54,40 +54,29 @@ class CleanerService {
   }
 
   /**
-   * Remove registros com mais de 1 hora de criação
+   * Remove conversas antigas (mais de 1 hora sem atividade)
    */
   private async cleanOldRecords(): Promise<void> {
     try {
-      console.log('🧹 Executando limpeza de registros antigos...');
+      console.log('🧹 Executando limpeza de conversas antigas...');
 
       // Calcula o timestamp de 1 hora atrás
       const oneHourAgo = new Date();
       oneHourAgo.setHours(oneHourAgo.getHours() - 1);
 
-      // Remove mensagens antigas
-      const deletedMessages = await this.prisma.message.deleteMany({
-        where: {
-          createdAt: {
-            lt: oneHourAgo
-          }
-        }
-      });
-
-      // Remove conversas antigas
+      // Remove conversas antigas (baseado na última atividade)
       const deletedConversations = await this.prisma.conversation.deleteMany({
         where: {
-          createdAt: {
+          lastActivity: {
             lt: oneHourAgo
           }
         }
       });
 
-      const totalDeleted = deletedMessages.count + deletedConversations.count;
-
-      if (totalDeleted > 0) {
-        console.log(`🗑️ Limpeza concluída: ${deletedMessages.count} mensagens e ${deletedConversations.count} conversas removidas`);
+      if (deletedConversations.count > 0) {
+        console.log(`🗑️ Limpeza concluída: ${deletedConversations.count} conversas antigas removidas`);
       } else {
-        console.log('✨ Nenhum registro antigo encontrado para remoção');
+        console.log('✨ Nenhuma conversa antiga encontrada para remoção');
       }
 
     } catch (error) {
