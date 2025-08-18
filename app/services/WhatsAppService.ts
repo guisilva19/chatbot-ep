@@ -146,13 +146,20 @@ class WhatsAppService {
         return;
       }
 
-      // SEGUNDA PRIORIDADE: Verifica se o contato está bloqueado por 1 ano
+      // SEGUNDA PRIORIDADE: Verifica se é comando "menu" para voltar ao menu principal
+      // O comando "menu" sempre funciona, mesmo quando o bot está desativado
+      if (messageText.toLowerCase().trim() === "menu") {
+        await this.handleMenuCommand(number);
+        return;
+      }
+
+      // TERCEIRA PRIORIDADE: Verifica se o contato está bloqueado por 1 ano
       if (await this.conversationService.isContactBlockedForOneYear(number)) {
         console.log(`🔒 Contato bloqueado por 1 ano: ${number} - Mensagem ignorada: "${messageText}"`);
         return;
       }
 
-      // TERCEIRA PRIORIDADE: Verifica se o contato está bloqueado por 1 hora (sistema antigo)
+      // QUARTA PRIORIDADE: Verifica se o contato está bloqueado por 1 hora (sistema antigo)
       if (this.isContactBlocked(number)) {
         const remainingTime = this.getRemainingBlockTime(number);
         console.log(`🚫 Bot bloqueado para ${number} - Tempo restante: ${remainingTime} - Mensagem ignorada: "${messageText}"`);
@@ -198,6 +205,10 @@ class WhatsAppService {
         await this.handleInitialState(number);
         break;
         
+      case ConversationState.WAITING_NAME:
+        await this.handleNameCapture(number, messageText);
+        break;
+        
       case ConversationState.WAITING_OPTION:
         await this.handleOptionSelection(number, messageText);
         break;
@@ -237,15 +248,62 @@ class WhatsAppService {
     // Envia mensagem de boas-vindas
     await this.sendMessage(number, MessageTemplates.getWelcomeMessage());
     
-    // Aguarda 1 segundo e envia o menu
+    // Aguarda 1 segundo e solicita o nome
     setTimeout(async () => {
-      await this.sendMessage(number, MessageTemplates.getMainMenu());
+      await this.sendMessage(number, MessageTemplates.getNameRequestMessage());
       await this.conversationService.updateConversationState(
         number, 
+        ConversationState.WAITING_NAME,
+        "name_capture"
+      );
+    }, 1000);
+  }
+
+  private async handleMenuCommand(number: string): Promise<void> {
+    // Busca os dados do usuário para pegar o nome
+    const conversation = await this.conversationService.getConversation(number);
+    const userData = (conversation?.userData as any) || {};
+    const name = userData.name;
+
+    // Reativa o bot removendo completamente a desativação temporária
+    if (conversation?.botDisabledUntil) {
+      await this.conversationService.updateConversationState(
+        number,
+        conversation.state,
+        conversation.waitingFor || undefined,
+        conversation.userData as any
+      );
+      // Remove especificamente o botDisabledUntil para desativar o bloqueio de 5 min
+      await this.conversationService.removeBotDisabled(number);
+      console.log(`🔄 Bot reativado para ${number} através do comando "menu" - Bloqueio de 5 min removido`);
+    }
+
+    // Volta para o menu principal
+    await this.sendMessage(number, MessageTemplates.getMainMenu(name));
+    await this.sendMessage(number, MessageTemplates.getMenuTip());
+    await this.conversationService.updateConversationState(
+      number, 
+      ConversationState.WAITING_OPTION,
+      "option_selection"
+    );
+  }
+
+  private async handleNameCapture(number: string, messageText: string): Promise<void> {
+    const name = messageText.trim();
+    
+    // Salva o nome do usuário
+    await this.conversationService.updateUserData(number, { name });
+    
+        // Aguarda 500ms e envia o menu personalizado
+    setTimeout(async () => {
+      await this.sendMessage(number, MessageTemplates.getMainMenu(name));
+      await this.sendMessage(number, MessageTemplates.getMenuTip());
+      await this.conversationService.updateConversationState(
+        number,
         ConversationState.WAITING_OPTION,
         "option_selection"
       );
-    }, 1000);
+    }, 500);
   }
 
   private async handleOptionSelection(number: string, messageText: string): Promise<void> {
@@ -326,7 +384,7 @@ class WhatsAppService {
     // Coleta as informações sequencialmente
     if (!userData.energyConsumption) {
       await this.conversationService.updateUserData(number, { energyConsumption: messageText });
-      await this.sendMessage(number, "Perfeito! Por último, você tem alguma preferência por tipo de painel solar ou inversor em específico?");
+      await this.sendMessage(number, "Perfeito! Por último, você tem alguma preferência por tipo de painel solar ou inversor em específico?\n\n💡 _Digite \"menu\" para voltar_");
     } else if (!userData.panelPreference) {
       await this.conversationService.updateUserData(number, { panelPreference: messageText });
       
@@ -346,7 +404,7 @@ class WhatsAppService {
     
     if (!userData.wellDepth) {
       await this.conversationService.updateUserData(number, { wellDepth: messageText });
-      await this.sendMessage(number, "Obrigado! Agora me informe qual é a vazão de água necessária:");
+      await this.sendMessage(number, "Obrigado! Agora me informe qual é a vazão de água necessária:\n\n💡 _Digite \"menu\" para voltar_");
     } else if (!userData.waterFlow) {
       await this.conversationService.updateUserData(number, { waterFlow: messageText });
       await this.sendMessage(number, "Perfeito! Por último, você tem alguma preferência por tipo de bomba ou equipamento específico?");
@@ -368,7 +426,7 @@ class WhatsAppService {
     
     if (!userData.investmentGoal) {
       await this.conversationService.updateUserData(number, { investmentGoal: messageText });
-      await this.sendMessage(number, "Obrigado! Agora me informe qual é o seu perfil de risco (conservador, moderado ou arrojado):");
+      await this.sendMessage(number, "Obrigado! Agora me informe qual é o seu perfil de risco (conservador, moderado ou arrojado):\n\n💡 _Digite \"menu\" para voltar_");
     } else if (!userData.riskProfile) {
       await this.conversationService.updateUserData(number, { riskProfile: messageText });
       await this.sendMessage(number, "Perfeito! Por último, você tem alguma preferência por tipo de investimento em energia solar?");
@@ -390,7 +448,7 @@ class WhatsAppService {
     
     if (!userData.budget) {
       await this.conversationService.updateUserData(number, { budget: messageText });
-      await this.sendMessage(number, "Obrigado! Agora me informe qual é sua preferência por tipo de financiamento:");
+      await this.sendMessage(number, "Obrigado! Agora me informe qual é sua preferência por tipo de financiamento:\n\n💡 _Digite \"menu\" para voltar_");
     } else if (!userData.financingPreference) {
       await this.conversationService.updateUserData(number, { financingPreference: messageText });
       await this.sendMessage(number, "Perfeito! Você gostaria de saber mais sobre os incentivos governamentais disponíveis? (Sim/Não)");

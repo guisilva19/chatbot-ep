@@ -3,6 +3,7 @@ import { PrismaClient, ConversationState } from '@prisma/client';
 const prisma = new PrismaClient();
 
 interface UserData {
+  name?: string;
   selectedOption?: string;
   residenceSize?: string;
   energyConsumption?: string;
@@ -173,6 +174,14 @@ export class ConversationService {
     const now = new Date();
     const remaining = conversation.botDisabledUntil.getTime() - now.getTime();
     return Math.max(0, Math.ceil(remaining / (60 * 1000))); // retorna minutos restantes
+  }
+
+  // Método para remover manualmente a desativação do bot
+  async removeBotDisabled(number: string): Promise<void> {
+    await prisma.conversation.update({
+      where: { number },
+      data: { botDisabledUntil: null }
+    });
   }
 
   async blockContactForOneYear(number: string): Promise<void> {

@@ -8,11 +8,18 @@ Olá! Seja bem-vindo(a)! ☀️
 _Estamos aqui para ajudar você com qualquer dúvida ou informação que precise. Enquanto aguardamos o atendimento, gostaríamos de convidá-lo(a) a nos seguir nas redes sociais para ficar por dentro dos nossos trabalhos!_
 
 ⁠Instagram 👇🏻
-_⁠https://www.instagram.com/ep.energiasolar_`;
+https://www.instagram.com/ep.energiasolar`;
   }
 
-  static getMainMenu(): string {
-    return `_Para atendê-lo(a) de forma personalizada, precisamos saber um pouco mais sobre o que você precisa. Por favor, selecione uma das opções abaixo:_
+  static getNameRequestMessage(): string {
+    return `_Qual é o seu nome?_ 😊`;
+  }
+
+  static getMainMenu(name?: string): string {
+    const greeting = name ? `Olá, ${name}!` : 'Olá!';
+    return `${greeting}
+
+_Para atendê-lo(a) de forma personalizada, precisamos saber um pouco mais sobre o que você precisa. Por favor, selecione uma das opções abaixo:_
 
 1️⃣ Reduzir conta de luz em até 95% 📉:
 Se você está pronto para solicitar um orçamento ou proposta para a instalação de painéis solares.
@@ -35,13 +42,20 @@ Se você tiver alguma outra dúvida ou assunto que não esteja listado acima.
 _Digite o número da opção desejada_`;
   }
 
+  // Método para adicionar a dica do menu
+  static getMenuTip(): string {
+    return `💡 _Digite "menu" para voltar_`;
+  }
+
   static getOption1Message(): string {
     return `_Quero reduzir a minha conta de energia em até 95% 💰_
 
 Para prosseguir, gostaríamos de saber mais sobre sua residência ou empresa. Por favor, responda com as seguintes informações:
 
 _⁠Quantos kWh atende sua necessidade?_
-Obs: se você não souber, pode responder com o valor aproximado de sua conta de luz.`;
+Obs: se você não souber, pode responder com o valor aproximado da sua conta de luz.
+
+${this.getMenuTip()}`;
   }
 
   static getOption2Message(): string {
@@ -49,7 +63,9 @@ Obs: se você não souber, pode responder com o valor aproximado de sua conta de
 
 Para prosseguir, gostaríamos de saber mais sobre o seu poço artesiano. Por favor, responda com as seguintes informações:
 
-_⁠Qual é a profundidade do seu poço artesiano?_`;
+_⁠Qual é a profundidade do seu poço artesiano?_
+
+${this.getMenuTip()}`;
   }
 
   static getOption3Message(): string {
@@ -57,7 +73,9 @@ _⁠Qual é a profundidade do seu poço artesiano?_`;
 
 Para prosseguir, gostaríamos de saber mais sobre o seu interesse em investir em energia solar. Por favor, responda com as seguintes informações:
 
-_⁠Qual é o seu objetivo de investimento?_`;
+_⁠Qual é o seu objetivo de investimento?_
+
+${this.getMenuTip()}`;
   }
 
   static getOption4Message(): string {
@@ -65,7 +83,9 @@ _⁠Qual é o seu objetivo de investimento?_`;
 
 Para prosseguir, gostaríamos de saber mais sobre o seu interesse em financiamento e incentivos. Por favor, responda com as seguintes informações:
 
-_⁠Qual é o seu orçamento para a instalação de painéis solares?_`;
+_⁠Qual é o seu orçamento para a instalação de painéis solares?_
+
+${this.getMenuTip()}`;
   }
 
   static getOption5Message(): string {
@@ -73,7 +93,9 @@ _⁠Qual é o seu orçamento para a instalação de painéis solares?_`;
 
 Para prosseguir, gostaríamos de saber mais sobre o problema técnico que você está enfrentando. Por favor, responda com as seguintes informações:
 
-_⁠Qual é o problema técnico que você está enfrentando?_`;
+_⁠Qual é o problema técnico que você está enfrentando?_
+
+${this.getMenuTip()}`;
   }
 
   static getOption6Message(): string {
@@ -93,24 +115,33 @@ _O atendimento automatizado será pausado por alguns minutos para que você poss
   }
 
   static getInvalidOptionMessage(): string {
-    return `_Desculpe, não entendi sua opção. Por favor, digite apenas o número correspondente à opção desejada._`;
+    return `_Desculpe, não entendi sua opção. Por favor, digite apenas o número correspondente à opção desejada._
+
+${this.getMenuTip()}`;
   }
 
   static getErrorMessage(): string {
     return `_Ops! Ocorreu um erro inesperado. Nossa equipe foi notificada e irá resolver em breve._ 
 
-_Você pode tentar novamente ou aguardar que entraremos em contato! 😊_`;
+_Você pode tentar novamente ou aguardar que entraremos em contato! 😊_
+
+${this.getMenuTip()}`;
   }
 
   static getTimeoutMessage(): string {
     return `_Olá! Notei que você iniciou uma conversa conosco mas não finalizou. 
 
-_Se ainda tiver interesse, é só responder esta mensagem que continuamos de onde paramos! 😊_`;
+_Se ainda tiver interesse, é só responder esta mensagem que continuamos de onde paramos! 😊_
+
+${this.getMenuTip()}`;
   }
 
   // Método para personalizar mensagens com dados do usuário
   static getPersonalizedSummary(userData: any): string {
-    let summary = "_📋 Resumo das suas informações:_\n\n";
+    const name = userData.name ? `${userData.name}` : '';
+    let summary = name ? `_📋 Resumo das informações de ${name}:_\n\n` : "_📋 Resumo das suas informações:_\n\n";
+    
+    if (userData.name) summary += `👤 Nome: ${userData.name}\n`;
     
     if (userData.selectedOption) {
       const optionNames = {

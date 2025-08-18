@@ -24,6 +24,7 @@ model Conversation {
 
 enum ConversationState {
   INITIAL           // Estado inicial - primeira mensagem
+  WAITING_NAME      // Aguardando o nome da pessoa
   WAITING_OPTION    // Aguardando seleção do menu principal
   OPTION_1_DETAILS  // Coletando detalhes para energia solar residencial
   OPTION_2_DETAILS  // Coletando detalhes para poço artesiano
