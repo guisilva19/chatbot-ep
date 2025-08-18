@@ -175,6 +175,49 @@ export class ConversationService {
     return Math.max(0, Math.ceil(remaining / (60 * 1000))); // retorna minutos restantes
   }
 
+  async blockContactForOneYear(number: string): Promise<void> {
+    const yearBlockedUntil = new Date();
+    yearBlockedUntil.setFullYear(yearBlockedUntil.getFullYear() + 1); // Adiciona 1 ano
+
+    await prisma.conversation.upsert({
+      where: { number },
+      update: {
+        yearBlockedUntil,
+        lastActivity: new Date()
+      },
+      create: {
+        number,
+        firstMessage: "stop",
+        state: ConversationState.INITIAL,
+        userData: {},
+        yearBlockedUntil
+      }
+    });
+  }
+
+  async isContactBlockedForOneYear(number: string): Promise<boolean> {
+    const conversation = await prisma.conversation.findUnique({
+      where: { number },
+      select: { yearBlockedUntil: true }
+    });
+
+    if (!conversation?.yearBlockedUntil) {
+      return false;
+    }
+
+    const now = new Date();
+    if (now >= conversation.yearBlockedUntil) {
+      // Se o tempo de bloqueio passou, remove o bloqueio
+      await prisma.conversation.update({
+        where: { number },
+        data: { yearBlockedUntil: null }
+      });
+      return false;
+    }
+
+    return true;
+  }
+
   // Método para limpar conversas antigas (mais de 30 dias sem atividade)
   async cleanOldConversations() {
     const thirtyDaysAgo = new Date();

@@ -17,6 +17,7 @@ model Conversation {
   lastActivity DateTime            @default(now()) @map("last_activity")
   createdAt    DateTime            @default(now()) @map("created_at")
   botDisabledUntil DateTime?       @map("bot_disabled_until") // quando o bot foi desativado até
+  yearBlockedUntil DateTime?       @map("year_blocked_until") // bloqueio de 1 ano por comando "stop"
 
   @@map("conversations")
 }
