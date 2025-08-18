@@ -89,7 +89,7 @@ _Estamos aqui para ajudar! 😊_`;
 
 Nossa equipe irá analisar seus dados e entrará em contato em breve com uma proposta personalizada.
 
-_Caso tenha alguma dúvida urgente, pode falar conosco a qualquer momento! 😊_`;
+_O atendimento automatizado será pausado por alguns minutos para que você possa processar as informações. Se precisar de algo urgente, nossa equipe estará disponível em breve! 😊_`;
   }
 
   static getInvalidOptionMessage(): string {
@@ -97,7 +97,7 @@ _Caso tenha alguma dúvida urgente, pode falar conosco a qualquer momento! 😊_
   }
 
   static getErrorMessage(): string {
-    return `_Ops! Ocorreu um erro inesperado. Nossa equipe foi notificada e irá resolver em breve. 
+    return `_Ops! Ocorreu um erro inesperado. Nossa equipe foi notificada e irá resolver em breve._ 
 
 _Você pode tentar novamente ou aguardar que entraremos em contato! 😊_`;
   }

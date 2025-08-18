@@ -134,10 +134,17 @@ class WhatsAppService {
 
   private async handleEpMessage(number: string, messageText: string): Promise<void> {
     try {
-      // Verifica se o contato está bloqueado
+      // Verifica se o contato está bloqueado (sistema antigo)
       if (this.isContactBlocked(number)) {
         const remainingTime = this.getRemainingBlockTime(number);
         console.log(`🚫 Bot bloqueado para ${number} - Tempo restante: ${remainingTime} - Mensagem ignorada: "${messageText}"`);
+        return;
+      }
+
+      // Verifica se o bot está desativado para este usuário (novo sistema)
+      if (await this.conversationService.isBotDisabled(number)) {
+        const remainingMinutes = await this.conversationService.getRemainingDisableTime(number);
+        console.log(`🤖 Bot desativado para ${number} - Tempo restante: ${remainingMinutes} minutos - Mensagem ignorada: "${messageText}"`);
         return;
       }
 
@@ -311,7 +318,7 @@ class WhatsAppService {
       await this.sendMessage(number, summary);
       await this.sendMessage(number, MessageTemplates.getThankYouMessage());
       
-      await this.conversationService.updateConversationState(number, ConversationState.COMPLETED);
+      await this.conversationService.markAsCompleted(number, 5); // Desativa por 5 minutos
     }
   }
 
@@ -333,7 +340,7 @@ class WhatsAppService {
       await this.sendMessage(number, summary);
       await this.sendMessage(number, MessageTemplates.getThankYouMessage());
       
-      await this.conversationService.updateConversationState(number, ConversationState.COMPLETED);
+      await this.conversationService.markAsCompleted(number, 5); // Desativa por 5 minutos
     }
   }
 
@@ -355,7 +362,7 @@ class WhatsAppService {
       await this.sendMessage(number, summary);
       await this.sendMessage(number, MessageTemplates.getThankYouMessage());
       
-      await this.conversationService.updateConversationState(number, ConversationState.COMPLETED);
+      await this.conversationService.markAsCompleted(number, 5); // Desativa por 5 minutos
     }
   }
 
@@ -377,7 +384,7 @@ class WhatsAppService {
       await this.sendMessage(number, summary);
       await this.sendMessage(number, MessageTemplates.getThankYouMessage());
       
-      await this.conversationService.updateConversationState(number, ConversationState.COMPLETED);
+      await this.conversationService.markAsCompleted(number, 5); // Desativa por 5 minutos
     }
   }
 
@@ -399,7 +406,7 @@ class WhatsAppService {
       await this.sendMessage(number, summary);
       await this.sendMessage(number, MessageTemplates.getThankYouMessage());
       
-      await this.conversationService.updateConversationState(number, ConversationState.COMPLETED);
+      await this.conversationService.markAsCompleted(number, 5); // Desativa por 5 minutos
     }
   }
 
@@ -420,17 +427,16 @@ class WhatsAppService {
     }
   }
 
-  // Bloqueia o bot para um contato por 30 minutos
+  // Bloqueia o bot para um contato por 1 hora
   private blockContact(number: string): void {
     const blockTime = Date.now();
     this.blockedContacts.set(number, blockTime);
-    console.log(`🚫 Bot bloqueado para ${number} por 30 minutos`);
+    console.log(`🚫 Bot bloqueado para ${number} por 1 hora`);
     
-    // Remove o bloqueio após 30 minutos
     setTimeout(() => {
       this.blockedContacts.delete(number);
       console.log(`✅ Bot desbloqueado para ${number}`);
-    }, 30 * 60 * 1000); // 30 minutos em millisegundos
+    }, 60 * 60 * 1000); // 1 hora em millisegundos
   }
 
   // Verifica se um contato está bloqueado
@@ -441,10 +447,10 @@ class WhatsAppService {
 
     const blockTime = this.blockedContacts.get(number)!;
     const currentTime = Date.now();
-    const thirtyMinutes = 30 * 60 * 1000; // 30 minutos em millisegundos
+    const oneHour = 60 * 60 * 1000; // 1 hora em millisegundos
 
-    // Se passou mais de 30 minutos, remove o bloqueio
-    if (currentTime - blockTime > thirtyMinutes) {
+    // Se passou mais de 1 hora, remove o bloqueio
+    if (currentTime - blockTime > oneHour) {
       this.blockedContacts.delete(number);
       return false;
     }
@@ -462,7 +468,6 @@ class WhatsAppService {
     return false;
   }
 
-  // Método público para verificar contatos bloqueados
   // Método helper para calcular tempo restante de bloqueio
   private getRemainingBlockTime(number: string): string {
     if (!this.blockedContacts.has(number)) {
@@ -471,9 +476,9 @@ class WhatsAppService {
     
     const blockTime = this.blockedContacts.get(number)!;
     const currentTime = Date.now();
-    const thirtyMinutes = 30 * 60 * 1000;
+    const oneHour = 60 * 60 * 1000;
     const elapsed = currentTime - blockTime;
-    const remaining = thirtyMinutes - elapsed;
+    const remaining = oneHour - elapsed;
     
     if (remaining <= 0) {
       return "0 minutos";
@@ -485,11 +490,11 @@ class WhatsAppService {
 
   getBlockedContacts(): { number: string, blockedAt: Date, remainingTime: string }[] {
     const currentTime = Date.now();
-    const thirtyMinutes = 30 * 60 * 1000;
+    const oneHour = 60 * 60 * 1000;
     
     return Array.from(this.blockedContacts.entries()).map(([number, blockTime]) => {
       const elapsed = currentTime - blockTime;
-      const remaining = thirtyMinutes - elapsed;
+      const remaining = oneHour - elapsed;
       const remainingMinutes = Math.ceil(remaining / (60 * 1000));
       
       return {

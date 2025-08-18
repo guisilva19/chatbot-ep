@@ -110,8 +110,18 @@ export class ConversationService {
     });
   }
 
-  async markAsCompleted(number: string) {
-    return await this.updateConversationState(number, ConversationState.COMPLETED);
+  async markAsCompleted(number: string, disableMinutes: number = 5) {
+    // Calcula quando o bot deve ser reativado (padrão: 5 minutos)
+    const disableUntil = new Date(Date.now() + (disableMinutes * 60 * 1000));
+    
+    return await prisma.conversation.update({
+      where: { number },
+      data: {
+        state: ConversationState.COMPLETED,
+        botDisabledUntil: disableUntil,
+        lastActivity: new Date()
+      }
+    });
   }
 
   async resetConversation(number: string) {
@@ -121,9 +131,48 @@ export class ConversationService {
         state: ConversationState.INITIAL,
         waitingFor: null,
         userData: {},
+        botDisabledUntil: null,
         lastActivity: new Date()
       }
     });
+  }
+
+  async isBotDisabled(number: string): Promise<boolean> {
+    const conversation = await prisma.conversation.findUnique({
+      where: { number },
+      select: { botDisabledUntil: true }
+    });
+
+    if (!conversation?.botDisabledUntil) {
+      return false;
+    }
+
+    const now = new Date();
+    if (now >= conversation.botDisabledUntil) {
+      // Se o tempo de desativação passou, remove a desativação
+      await prisma.conversation.update({
+        where: { number },
+        data: { botDisabledUntil: null }
+      });
+      return false;
+    }
+
+    return true;
+  }
+
+  async getRemainingDisableTime(number: string): Promise<number> {
+    const conversation = await prisma.conversation.findUnique({
+      where: { number },
+      select: { botDisabledUntil: true }
+    });
+
+    if (!conversation?.botDisabledUntil) {
+      return 0;
+    }
+
+    const now = new Date();
+    const remaining = conversation.botDisabledUntil.getTime() - now.getTime();
+    return Math.max(0, Math.ceil(remaining / (60 * 1000))); // retorna minutos restantes
   }
 
   // Método para limpar conversas antigas (mais de 30 dias sem atividade)
