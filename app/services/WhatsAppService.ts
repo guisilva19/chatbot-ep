@@ -16,9 +16,9 @@ class WhatsAppService {
   private pendingMessages: PendingMessage[] = [];
   private isReady: boolean = false;
   private startTime: number = 0;
-  private blockedContacts: Map<string, number> = new Map(); // número -> timestamp do bloqueio
   private conversationService: ConversationService;
   private processingMessages: Set<string> = new Set(); // números sendo processados
+  private currentQRCode: string | null = null; // QR code atual para exibir na web
 
 
   constructor() {
@@ -50,12 +50,18 @@ class WhatsAppService {
 
 
     this.client.on("qr", (qr: string) => {
-      console.log("\n📲 Escaneie o QR code abaixo com o WhatsApp:\n");
-      qrcode.generate(qr, { small: true });
+      console.log("\n📲 QR Code gerado! Acesse a URL do seu app para escanear.\n");
+      this.currentQRCode = qr;
+      
+      // Se estiver em desenvolvimento local, mostra no terminal também
+      if (process.env.NODE_ENV !== 'production') {
+        qrcode.generate(qr, { small: true });
+      }
     });
 
     this.client.on("ready", () => {
       this.isReady = true;
+      this.currentQRCode = null; // Limpa o QR code quando conectar
       console.log("✅ WhatsApp conectado! Sistema de conversação ativado.");
       
       // Inicia o scheduler de limpeza automática
@@ -127,7 +133,7 @@ class WhatsAppService {
     
     // Não bloqueia se for comando "stop" ou se for mensagem do bot
     if (!isFromBot && messageText.toLowerCase().trim() !== "stop") {
-      this.blockContact(numberE164);
+      await this.blockContact(numberE164);
     }
   }
 
@@ -139,10 +145,6 @@ class WhatsAppService {
       if (messageText.toLowerCase().trim() === "stop") {
         await this.conversationService.blockContactForOneYear(number);
         console.log(`🔒 Contato ${number} bloqueado por 1 ano devido ao comando "stop"`);
-        // Remove do bloqueio de 1 hora se existir, pois agora está bloqueado por 1 ano
-        if (this.blockedContacts.has(number)) {
-          this.blockedContacts.delete(number);
-        }
         return;
       }
 
@@ -159,14 +161,7 @@ class WhatsAppService {
         return;
       }
 
-      // QUARTA PRIORIDADE: Verifica se o contato está bloqueado por 24 horas
-      if (this.isContactBlocked(number)) {
-        const remainingTime = this.getRemainingBlockTime(number);
-        console.log(`🚫 Bot bloqueado para ${number} - Tempo restante: ${remainingTime}`);
-        return;
-      }
-
-      // Verifica se o bot está desativado para este usuário (novo sistema)
+      // Verifica se o bot está desativado para este usuário (sistema de bloqueio por tempo)
       if (await this.conversationService.isBotDisabled(number)) {
         const remainingMinutes = await this.conversationService.getRemainingDisableTime(number);
         console.log(`🤖 Bot desativado para ${number} - Tempo restante: ${remainingMinutes} minutos`);
@@ -503,97 +498,26 @@ class WhatsAppService {
     }
   }
 
-  // Bloqueia o bot para um contato por 24 horas
-  private blockContact(number: string): void {
-    const blockTime = Date.now();
-    this.blockedContacts.set(number, blockTime);
-    console.log(`🚫 Bot bloqueado para ${number} por 24 horas`);
-    
-    setTimeout(() => {
-      this.blockedContacts.delete(number);
-      console.log(`✅ Bot desbloqueado para ${number}`);
-    }, 24 * 60 * 60 * 1000); // 24 horas em millisegundos
-  }
-
-  // Verifica se um contato está bloqueado
-  private isContactBlocked(number: string): boolean {
-    if (!this.blockedContacts.has(number)) {
-      return false;
+  // Bloqueia o bot para um contato por 24 horas (usando banco de dados)
+  private async blockContact(number: string): Promise<void> {
+    try {
+      await this.conversationService.markAsCompleted(number, 24 * 60); // 24 horas = 1440 minutos
+      console.log(`🚫 Bot bloqueado para ${number} por 24 horas`);
+    } catch (error) {
+      console.error(`Erro ao bloquear contato ${number}:`, error);
     }
-
-    const blockTime = this.blockedContacts.get(number)!;
-    const currentTime = Date.now();
-    const oneDay = 24 * 60 * 60 * 1000; // 24 horas em millisegundos
-
-    // Se passou mais de 24 horas, remove o bloqueio
-    if (currentTime - blockTime > oneDay) {
-      this.blockedContacts.delete(number);
-      return false;
-    }
-
-    return true;
   }
 
   // Método público para desbloquear um contato manualmente
-  unblockContact(number: string): boolean {
-    if (this.blockedContacts.has(number)) {
-      this.blockedContacts.delete(number);
+  async unblockContact(number: string): Promise<boolean> {
+    try {
+      await this.conversationService.removeBotDisabled(number);
       console.log(`✅ Bot desbloqueado manualmente para ${number}`);
       return true;
+    } catch (error) {
+      console.error(`Erro ao desbloquear contato ${number}:`, error);
+      return false;
     }
-    return false;
-  }
-
-  // Método helper para calcular tempo restante de bloqueio
-  private getRemainingBlockTime(number: string): string {
-    if (!this.blockedContacts.has(number)) {
-      return "0 minutos";
-    }
-    
-    const blockTime = this.blockedContacts.get(number)!;
-    const currentTime = Date.now();
-    const oneDay = 24 * 60 * 60 * 1000;
-    const elapsed = currentTime - blockTime;
-    const remaining = oneDay - elapsed;
-    
-    if (remaining <= 0) {
-      return "0 minutos";
-    }
-    
-    const remainingMinutes = Math.ceil(remaining / (60 * 1000));
-    const remainingHours = Math.floor(remainingMinutes / 60);
-    const remainingMinutesOnly = remainingMinutes % 60;
-    
-    if (remainingHours > 0) {
-      return `${remainingHours}h ${remainingMinutesOnly}min`;
-    }
-    return `${remainingMinutes} minutos`;
-  }
-
-  getBlockedContacts(): { number: string, blockedAt: Date, remainingTime: string }[] {
-    const currentTime = Date.now();
-    const oneDay = 24 * 60 * 60 * 1000;
-    
-    return Array.from(this.blockedContacts.entries()).map(([number, blockTime]) => {
-      const elapsed = currentTime - blockTime;
-      const remaining = oneDay - elapsed;
-      const remainingMinutes = Math.ceil(remaining / (60 * 1000));
-      const remainingHours = Math.floor(remainingMinutes / 60);
-      const remainingMinutesOnly = remainingMinutes % 60;
-      
-      let remainingTimeString: string;
-      if (remainingHours > 0) {
-        remainingTimeString = `${remainingHours}h ${remainingMinutesOnly}min`;
-      } else {
-        remainingTimeString = `${remainingMinutes} minutos`;
-      }
-      
-      return {
-        number,
-        blockedAt: new Date(blockTime),
-        remainingTime: remainingTimeString
-      };
-    });
   }
 
   // Métodos públicos para gerenciar conversas
@@ -710,6 +634,15 @@ class WhatsAppService {
     
     // Inicia o primeiro agendamento
     scheduleNextReset();
+  }
+
+  // Métodos públicos para interface web
+  getQRCode(): string | null {
+    return this.currentQRCode;
+  }
+
+  isConnected(): boolean {
+    return this.isReady;
   }
 
   async stop(): Promise<void> {
