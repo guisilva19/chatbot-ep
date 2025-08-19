@@ -111,7 +111,7 @@ _Estamos aqui para ajudar! 😊_`;
 
 Nossa equipe irá analisar seus dados e entrará em contato em breve com uma proposta personalizada.
 
-_O atendimento automatizado será pausado por alguns minutos para que você possa processar as informações. Se precisar de algo urgente, nossa equipe estará disponível em breve! 😊_`;
+💡 _Digite "menu" para voltar_`;
   }
 
   static getInvalidOptionMessage(): string {

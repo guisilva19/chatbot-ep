@@ -155,21 +155,21 @@ class WhatsAppService {
 
       // TERCEIRA PRIORIDADE: Verifica se o contato está bloqueado por 1 ano
       if (await this.conversationService.isContactBlockedForOneYear(number)) {
-        console.log(`🔒 Contato bloqueado por 1 ano: ${number} - Mensagem ignorada: "${messageText}"`);
+        console.log(`🔒 Contato bloqueado por 1 ano: ${number}`);
         return;
       }
 
-      // QUARTA PRIORIDADE: Verifica se o contato está bloqueado por 1 hora (sistema antigo)
+      // QUARTA PRIORIDADE: Verifica se o contato está bloqueado por 24 horas
       if (this.isContactBlocked(number)) {
         const remainingTime = this.getRemainingBlockTime(number);
-        console.log(`🚫 Bot bloqueado para ${number} - Tempo restante: ${remainingTime} - Mensagem ignorada: "${messageText}"`);
+        console.log(`🚫 Bot bloqueado para ${number} - Tempo restante: ${remainingTime}`);
         return;
       }
 
       // Verifica se o bot está desativado para este usuário (novo sistema)
       if (await this.conversationService.isBotDisabled(number)) {
         const remainingMinutes = await this.conversationService.getRemainingDisableTime(number);
-        console.log(`🤖 Bot desativado para ${number} - Tempo restante: ${remainingMinutes} minutos - Mensagem ignorada: "${messageText}"`);
+        console.log(`🤖 Bot desativado para ${number} - Tempo restante: ${remainingMinutes} minutos`);
         return;
       }
 
@@ -503,16 +503,16 @@ class WhatsAppService {
     }
   }
 
-  // Bloqueia o bot para um contato por 1 hora
+  // Bloqueia o bot para um contato por 24 horas
   private blockContact(number: string): void {
     const blockTime = Date.now();
     this.blockedContacts.set(number, blockTime);
-    console.log(`🚫 Bot bloqueado para ${number} por 1 hora`);
+    console.log(`🚫 Bot bloqueado para ${number} por 24 horas`);
     
     setTimeout(() => {
       this.blockedContacts.delete(number);
       console.log(`✅ Bot desbloqueado para ${number}`);
-    }, 60 * 60 * 1000); // 1 hora em millisegundos
+    }, 24 * 60 * 60 * 1000); // 24 horas em millisegundos
   }
 
   // Verifica se um contato está bloqueado
@@ -523,10 +523,10 @@ class WhatsAppService {
 
     const blockTime = this.blockedContacts.get(number)!;
     const currentTime = Date.now();
-    const oneHour = 60 * 60 * 1000; // 1 hora em millisegundos
+    const oneDay = 24 * 60 * 60 * 1000; // 24 horas em millisegundos
 
-    // Se passou mais de 1 hora, remove o bloqueio
-    if (currentTime - blockTime > oneHour) {
+    // Se passou mais de 24 horas, remove o bloqueio
+    if (currentTime - blockTime > oneDay) {
       this.blockedContacts.delete(number);
       return false;
     }
@@ -552,31 +552,46 @@ class WhatsAppService {
     
     const blockTime = this.blockedContacts.get(number)!;
     const currentTime = Date.now();
-    const oneHour = 60 * 60 * 1000;
+    const oneDay = 24 * 60 * 60 * 1000;
     const elapsed = currentTime - blockTime;
-    const remaining = oneHour - elapsed;
+    const remaining = oneDay - elapsed;
     
     if (remaining <= 0) {
       return "0 minutos";
     }
     
     const remainingMinutes = Math.ceil(remaining / (60 * 1000));
+    const remainingHours = Math.floor(remainingMinutes / 60);
+    const remainingMinutesOnly = remainingMinutes % 60;
+    
+    if (remainingHours > 0) {
+      return `${remainingHours}h ${remainingMinutesOnly}min`;
+    }
     return `${remainingMinutes} minutos`;
   }
 
   getBlockedContacts(): { number: string, blockedAt: Date, remainingTime: string }[] {
     const currentTime = Date.now();
-    const oneHour = 60 * 60 * 1000;
+    const oneDay = 24 * 60 * 60 * 1000;
     
     return Array.from(this.blockedContacts.entries()).map(([number, blockTime]) => {
       const elapsed = currentTime - blockTime;
-      const remaining = oneHour - elapsed;
+      const remaining = oneDay - elapsed;
       const remainingMinutes = Math.ceil(remaining / (60 * 1000));
+      const remainingHours = Math.floor(remainingMinutes / 60);
+      const remainingMinutesOnly = remainingMinutes % 60;
+      
+      let remainingTimeString: string;
+      if (remainingHours > 0) {
+        remainingTimeString = `${remainingHours}h ${remainingMinutesOnly}min`;
+      } else {
+        remainingTimeString = `${remainingMinutes} minutos`;
+      }
       
       return {
         number,
         blockedAt: new Date(blockTime),
-        remainingTime: `${remainingMinutes} minutos`
+        remainingTime: remainingTimeString
       };
     });
   }
@@ -658,6 +673,43 @@ class WhatsAppService {
         console.error("Erro na limpeza automática:", error);
       }
     }, 24 * 60 * 60 * 1000); // 24 horas
+
+    // Inicia o scheduler para reset diário à meia-noite
+    this.startMidnightResetScheduler();
+  }
+
+  // Scheduler para resetar conversas todo dia à meia-noite
+  private startMidnightResetScheduler(): void {
+    const scheduleNextReset = () => {
+      const now = new Date();
+      const nextMidnight = new Date();
+      nextMidnight.setDate(now.getDate() + 1);
+      nextMidnight.setHours(0, 0, 0, 0); // Meia-noite
+      
+      const timeUntilMidnight = nextMidnight.getTime() - now.getTime();
+      
+      console.log(`🌙 Próximo reset automático agendado para: ${nextMidnight.toLocaleString('pt-BR')}`);
+      
+      setTimeout(async () => {
+        try {
+          const result = await this.conversationService.resetAllConversationsExceptBlocked();
+          
+          if (result.success) {
+            console.log(`🌙 Reset meia-noite executado: ${result.deletedNormal} conversas resetadas`);
+          } else {
+            console.error("❌ Falha no reset da meia-noite:", result.error);
+          }
+        } catch (error) {
+          console.error("❌ Erro crítico no reset da meia-noite:", error);
+        }
+        
+        // Agenda o próximo reset para a próxima meia-noite
+        scheduleNextReset();
+      }, timeUntilMidnight);
+    };
+    
+    // Inicia o primeiro agendamento
+    scheduleNextReset();
   }
 
   async stop(): Promise<void> {

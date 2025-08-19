@@ -111,7 +111,7 @@ export class ConversationService {
     });
   }
 
-  async markAsCompleted(number: string, disableMinutes: number = 5) {
+  async markAsCompleted(number: string, disableMinutes: number = 60) {
     // Calcula quando o bot deve ser reativado (padrão: 5 minutos)
     const disableUntil = new Date(Date.now() + (disableMinutes * 60 * 1000));
     
@@ -239,6 +239,33 @@ export class ConversationService {
         }
       }
     });
+  }
+
+  // Método para resetar todas as conversas à meia-noite (EXCETO contatos com "stop")
+  async resetAllConversationsExceptBlocked() {
+    try {
+      // Apaga todas as conversas que NÃO têm yearBlockedUntil (não digitaram "stop")
+      const deletedConversations = await prisma.conversation.deleteMany({
+        where: {
+          yearBlockedUntil: null // Só apaga quem NÃO tem bloqueio de 1 ano
+        }
+      });
+
+      console.log(`🌙 Reset meia-noite: ${deletedConversations.count} conversas normais removidas`);
+      
+      return {
+        deletedNormal: deletedConversations.count,
+        success: true
+      };
+
+    } catch (error) {
+      console.error("❌ Erro no reset da meia-noite:", error);
+      return {
+        deletedNormal: 0,
+        success: false,
+        error: error
+      };
+    }
   }
 }
 
