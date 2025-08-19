@@ -1,12 +1,5 @@
-[build]
-builder = "nixpacks"
-
 [deploy]
 startCommand = "npm start"
-healthcheckPath = "/health"
-healthcheckTimeout = 100
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
 
 [deploy.envs]
 PUPPETEER_EXECUTABLE_PATH = "/usr/bin/chromium-browser"
