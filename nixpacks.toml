@@ -12,4 +12,4 @@ cmd = "yarn start"
 
 [variables]
 NODE_ENV = "production"
-NODE_OPTIONS = "--max-old-space-size=256" 
+NODE_OPTIONS = "--max-old-space-size=128" 
