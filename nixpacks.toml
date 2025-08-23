@@ -2,7 +2,7 @@
 nixPkgs = ["nodejs", "nodePackages.yarn", "chromium"]
 
 [phases.install]
-cmds = ["yarn install --frozen-lockfile --production"]
+cmds = ["yarn install --frozen-lockfile"]
 
 [phases.build]
 cmds = ["yarn build", "yarn prisma generate"]
