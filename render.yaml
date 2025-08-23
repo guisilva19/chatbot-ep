@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: whatsapp-bot
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: yarn install && yarn build && yarn prisma generate
+    startCommand: yarn start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=256
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: /usr/bin/google-chrome
+      - key: DATABASE_URL
+        fromDatabase:
+          name: whatsapp-bot-db
+          property: connectionString
+
+databases:
+  - name: whatsapp-bot-db
+    databaseName: whatsapp_bot
+    plan: free
+    region: oregon
