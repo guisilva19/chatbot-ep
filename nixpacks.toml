@@ -1,14 +1,14 @@
 [phases.setup]
-nixPkgs = ["nodejs", "nodePackages.npm", "chromium"]
+nixPkgs = ["nodejs", "nodePackages.yarn", "chromium"]
 
 [phases.install]
-cmds = ["npm ci --only=production"]
+cmds = ["yarn install --frozen-lockfile --production"]
 
 [phases.build]
-cmds = ["npm run build", "npx prisma generate"]
+cmds = ["yarn build", "yarn prisma generate"]
 
 [start]
-cmd = "npm start"
+cmd = "yarn start"
 
 [variables]
 NODE_ENV = "production"
