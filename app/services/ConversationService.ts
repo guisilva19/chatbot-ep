@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 interface UserData {
   name?: string;
   selectedOption?: string;
-  residenceSize?: string;
   energyConsumption?: string;
   panelPreference?: string;
   wellDepth?: string;

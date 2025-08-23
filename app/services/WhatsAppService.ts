@@ -4,21 +4,15 @@ import { ConversationService } from "./ConversationService";
 import { MessageTemplates } from "./MessageTemplates";
 import { ConversationState } from "@prisma/client";
 
-interface PendingMessage {
-  id: number;
-  number: string;
-  message: string;
-  timestamp: Date;
-}
-
 class WhatsAppService {
   private client: Client | null = null;
-  private pendingMessages: PendingMessage[] = [];
   private isReady: boolean = false;
   private startTime: number = 0;
   private conversationService: ConversationService;
   private processingMessages: Set<string> = new Set(); // números sendo processados
   private currentQRCode: string | null = null; // QR code atual para exibir na web
+  private lastActivity: number = Date.now(); // controle de atividade para hibernação
+  private isHibernating: boolean = false;
 
 
   constructor() {
@@ -34,7 +28,19 @@ class WhatsAppService {
           "--no-sandbox",
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
-          "--disable-gpu"
+          "--disable-gpu",
+          "--disable-background-timer-throttling",
+          "--disable-backgrounding-occluded-windows",
+          "--disable-renderer-backgrounding",
+          "--disable-features=TranslateUI",
+          "--disable-ipc-flooding-protection",
+          "--disable-extensions",
+          "--disable-plugins",
+          "--disable-default-apps",
+          "--no-first-run",
+          "--no-default-browser-check",
+          "--single-process",
+          "--memory-pressure-off"
         ],
         timeout: 60000
       }
@@ -66,9 +72,9 @@ class WhatsAppService {
       
       // Inicia o scheduler de limpeza automática
       this.startCleanupScheduler();
-    });
-
-    this.client.on("loading_screen", (percent: number, message: string) => {
+      
+      // Inicia o sistema de hibernação
+      this.startHibernationTimer();
     });
 
     this.client.on("authenticated", () => {
@@ -92,27 +98,15 @@ class WhatsAppService {
       this.isReady = false;
     });
 
-    // Eventos adicionais para debug
-    this.client.on("change_state", (state: string) => {
-    });
-
-    this.client.on("incoming_call", (call: any) => {
-    });
-
-    this.client.on("open", () => {
-      console.log("🔓 Cliente aberto");
-    });
-
-    this.client.on("close", () => {
-      console.log("🔒 Cliente fechado");
-    });
-
   }
 
   private async handleIncomingMessage(msg: WhatsAppMessage): Promise<void> {
     const rawNumber = msg.from;
     const messageText = msg.body;
     const numberE164 = `+${rawNumber.replace("@c.us", "")}`;
+
+    // Atualiza atividade e acorda se estiver hibernando
+    this.updateActivity();
 
     // Ignora mensagens de grupo
     const isGroup = rawNumber.includes("@g.us");
@@ -588,15 +582,18 @@ class WhatsAppService {
 
   // Método para limpar conversas antigas (executa automaticamente)
   private async startCleanupScheduler(): Promise<void> {
-    // Executa limpeza de conversas antigas a cada 24 horas
+    // Executa limpeza de conversas antigas a cada 48 horas (reduzido para economizar recursos)
     setInterval(async () => {
       try {
-        const result = await this.conversationService.cleanOldConversations();
-        console.log(`🧹 Limpeza automática: ${result.count} conversas antigas removidas`);
+        // Só executa se não estiver hibernando
+        if (!this.isHibernating) {
+          const result = await this.conversationService.cleanOldConversations();
+          console.log(`🧹 Limpeza automática: ${result.count} conversas antigas removidas`);
+        }
       } catch (error) {
         console.error("Erro na limpeza automática:", error);
       }
-    }, 24 * 60 * 60 * 1000); // 24 horas
+    }, 48 * 60 * 60 * 1000); // 48 horas (reduzido de 24h)
 
     // Inicia o scheduler para reset diário à meia-noite
     this.startMidnightResetScheduler();
@@ -649,6 +646,49 @@ class WhatsAppService {
     if (this.client) {
       this.client.destroy();
     }
+  }
+
+  // Sistema de hibernação para economizar recursos
+  private updateActivity(): void {
+    this.lastActivity = Date.now();
+    if (this.isHibernating) {
+      this.wakeUp();
+    }
+  }
+
+  private wakeUp(): void {
+    if (!this.isHibernating) return;
+    
+    console.log("🔄 Acordando do modo hibernação...");
+    this.isHibernating = false;
+    
+    // Força garbage collection se disponível
+    if (global.gc) {
+      global.gc();
+    }
+  }
+
+  private hibernate(): void {
+    if (this.isHibernating) return;
+    
+    console.log("💤 Entrando em modo hibernação para economizar recursos...");
+    this.isHibernating = true;
+    
+    // Força garbage collection se disponível
+    if (global.gc) {
+      global.gc();
+    }
+  }
+
+  private startHibernationTimer(): void {
+    setInterval(() => {
+      const inactiveTime = Date.now() - this.lastActivity;
+      const hibernationThreshold = 30 * 60 * 1000; // 30 minutos sem atividade
+      
+      if (inactiveTime > hibernationThreshold && !this.isHibernating) {
+        this.hibernate();
+      }
+    }, 5 * 60 * 1000); // Verifica a cada 5 minutos
   }
 }
 

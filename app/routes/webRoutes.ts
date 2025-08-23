@@ -1,8 +1,7 @@
 import express, { Request, Response } from "express";
 import WhatsAppService from "../services/WhatsAppService";
-import CleanerService from "../services/CleanerService";
 
-function createWebRoutes(whatsappService: WhatsAppService, cleanerService?: CleanerService) {
+function createWebRoutes(whatsappService: WhatsAppService) {
   const router = express.Router();
 
   // Rota para mostrar QR code na web
@@ -56,12 +55,7 @@ function createWebRoutes(whatsappService: WhatsAppService, cleanerService?: Clea
             }
             .refresh-btn:hover { background: #0056b3; }
           </style>
-          <script>
-            // Auto-refresh a cada 5 segundos
-            setTimeout(() => {
-              window.location.reload();
-            }, 5000);
-          </script>
+
         </head>
         <body>
           <div class="container">
@@ -73,7 +67,7 @@ function createWebRoutes(whatsappService: WhatsAppService, cleanerService?: Clea
             <div class="qr-code">
               <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeData)}" alt="QR Code" />
             </div>
-            <p><small>Esta página atualiza automaticamente a cada 5 segundos</small></p>
+
             <button class="refresh-btn" onclick="window.location.reload()">🔄 Atualizar</button>
           </div>
         </body>
@@ -146,12 +140,7 @@ function createWebRoutes(whatsappService: WhatsAppService, cleanerService?: Clea
             }
             .loading { color: #6c757d; }
           </style>
-          <script>
-            // Auto-refresh a cada 3 segundos
-            setTimeout(() => {
-              window.location.reload();
-            }, 3000);
-          </script>
+
         </head>
         <body>
           <div class="container">
@@ -159,7 +148,7 @@ function createWebRoutes(whatsappService: WhatsAppService, cleanerService?: Clea
             <div class="loading">
               <h3>⏳ Carregando...</h3>
               <p>Aguarde enquanto o bot inicializa...</p>
-              <p><small>Esta página atualiza automaticamente</small></p>
+
             </div>
           </div>
         </body>
@@ -168,21 +157,7 @@ function createWebRoutes(whatsappService: WhatsAppService, cleanerService?: Clea
     }
   });
 
-  if (cleanerService) {
-    router.get("/api/cleaner/status", (req: Request, res: Response) => {
-      const status = cleanerService.getStatus();
-      res.json(status);
-    });
 
-    router.post("/api/cleaner/clean-now", async (req: Request, res: Response) => {
-      try {
-        await cleanerService.cleanNow();
-        res.json({ success: true, message: "Limpeza executada com sucesso" });
-      } catch (error) {
-        res.status(500).json({ success: false, error: "Erro ao executar limpeza" });
-      }
-    });
-  }
 
   return router;
 }
