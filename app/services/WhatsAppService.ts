@@ -465,7 +465,7 @@ class WhatsAppService {
     
     if (!userData.technicalProblem) {
       await this.conversationService.updateUserData(number, { technicalProblem: messageText });
-      await this.sendMessage(number, "Obrigado! Você tem alguma mensagem de erro ou sintomas específicos que possa compartilhar?");
+      await this.sendMessage(number, "Obrigado! Poderia me informar se aparece alguma mensagem de erro ou sinal específico que ajude a identificar o problema?");
     } else if (!userData.errorMessage) {
       await this.conversationService.updateUserData(number, { errorMessage: messageText });
       await this.sendMessage(number, "Perfeito! Você gostaria de agendar uma visita técnica? (Sim/Não)");
