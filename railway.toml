@@ -1,6 +1,0 @@
-[deploy]
-startCommand = "npm start"
-
-[deploy.envs]
-PUPPETEER_EXECUTABLE_PATH = "/usr/bin/chromium-browser"
-NODE_ENV = "production" 
