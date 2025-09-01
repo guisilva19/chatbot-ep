@@ -95,7 +95,6 @@ class WhatsAppService {
       const authTime = Date.now();
       const totalTime = authTime - this.startTime;
       console.log(`🔐 Autenticado com sucesso em ${totalTime}ms (${(totalTime / 1000).toFixed(2)}s)!`);
-      console.log("💾 Sessão salva em cache - será reutilizada em próximos restarts");
     });
 
     this.client.on("message", async (msg: WhatsAppMessage) => {
