@@ -27,17 +27,37 @@ class WhatsAppService {
 
   start(): void {
     this.client = new Client({
-      authStrategy: new LocalAuth(),
+      authStrategy: new LocalAuth({
+        clientId: "whatsapp-bot-ep", // ID único para o cliente
+        dataPath: "./.wwebjs_auth", // Caminho personalizado para dados de auth
+      }),
       puppeteer: {
         headless: true,
         args: [
           "--no-sandbox",
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
-          "--disable-gpu"
+          "--disable-gpu",
+          "--disable-web-security",
+          "--disable-features=VizDisplayCompositor",
+          "--disable-extensions",
+          "--disable-plugins",
+          "--disable-images",
+          "--disable-javascript",
+          "--disable-background-timer-throttling",
+          "--disable-backgrounding-occluded-windows",
+          "--disable-renderer-backgrounding",
+          "--disable-ipc-flooding-protection"
         ],
-        timeout: 60000
-      }
+        timeout: 120000, // Aumentado para 2 minutos
+        defaultViewport: null,
+        ignoreHTTPSErrors: true
+      },
+      takeoverOnConflict: true, // Toma controle se houver conflito de sessão
+      takeoverTimeoutMs: 60000, // Timeout para takeover
+      qrMaxRetries: 5, // Máximo de tentativas de QR
+      authTimeoutMs: 120000, // Timeout de autenticação aumentado
+      restartOnAuthFail: true, // Reinicia automaticamente em falha de auth
     });
 
     this.setupEventHandlers();
@@ -75,6 +95,7 @@ class WhatsAppService {
       const authTime = Date.now();
       const totalTime = authTime - this.startTime;
       console.log(`🔐 Autenticado com sucesso em ${totalTime}ms (${(totalTime / 1000).toFixed(2)}s)!`);
+      console.log("💾 Sessão salva em cache - será reutilizada em próximos restarts");
     });
 
     this.client.on("message", async (msg: WhatsAppMessage) => {
