@@ -184,14 +184,14 @@ export class ConversationService {
     });
   }
 
-  async blockContactForOneYear(number: string): Promise<void> {
-    const yearBlockedUntil = new Date();
-    yearBlockedUntil.setFullYear(yearBlockedUntil.getFullYear() + 1); // Adiciona 1 ano
+  async blockContactForThreeMonths(number: string): Promise<void> {
+    const threeMonthsBlockedUntil = new Date();
+    threeMonthsBlockedUntil.setMonth(threeMonthsBlockedUntil.getMonth() + 3); // Adiciona 3 meses
 
     await prisma.conversation.upsert({
       where: { number },
       update: {
-        yearBlockedUntil,
+        yearBlockedUntil: threeMonthsBlockedUntil, // Mantém o nome do campo por compatibilidade
         lastActivity: new Date()
       },
       create: {
@@ -199,7 +199,7 @@ export class ConversationService {
         firstMessage: "stop",
         state: ConversationState.INITIAL,
         userData: {},
-        yearBlockedUntil
+        yearBlockedUntil: threeMonthsBlockedUntil
       }
     });
   }
@@ -247,7 +247,7 @@ export class ConversationService {
       // Apaga todas as conversas que NÃO têm yearBlockedUntil (não digitaram "stop")
       const deletedConversations = await prisma.conversation.deleteMany({
         where: {
-          yearBlockedUntil: null // Só apaga quem NÃO tem bloqueio de 1 ano
+          yearBlockedUntil: null // Só apaga quem NÃO tem bloqueio de 3 meses
         }
       });
 

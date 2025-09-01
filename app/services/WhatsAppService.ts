@@ -151,8 +151,15 @@ class WhatsAppService {
     // Verifica se a mensagem tem a marca do bot (Zero Width Space no final)
     const isFromBot = messageText.endsWith("\u200B");
     
-    // Não bloqueia se for comando "stop" ou se for mensagem do bot
-    if (!isFromBot && messageText.toLowerCase().trim() !== "stop") {
+    // Se for comando "stop" do dono, bloqueia o contato por 3 meses
+    if (messageText.toLowerCase().trim() === "stop") {
+      await this.conversationService.blockContactForThreeMonths(numberE164);
+      console.log(`🔒 Contato ${numberE164} bloqueado por 3 meses pelo dono do bot`);
+      return;
+    }
+    
+    // Não bloqueia se for mensagem do bot
+    if (!isFromBot) {
       await this.blockContact(numberE164);
     }
   }
@@ -161,10 +168,10 @@ class WhatsAppService {
 
   private async handleEpMessage(number: string, messageText: string): Promise<void> {
     try {
-      // PRIMEIRA PRIORIDADE: Verifica se é comando "stop" para bloquear por 1 ano
+      // PRIMEIRA PRIORIDADE: Verifica se é comando "stop" para bloquear por 3 meses
       if (messageText.toLowerCase().trim() === "stop") {
-        await this.conversationService.blockContactForOneYear(number);
-        console.log(`🔒 Contato ${number} bloqueado por 1 ano devido ao comando "stop"`);
+        await this.conversationService.blockContactForThreeMonths(number);
+        console.log(`🔒 Contato ${number} bloqueado por 3 meses devido ao comando "stop"`);
         return;
       }
 
@@ -175,9 +182,9 @@ class WhatsAppService {
         return;
       }
 
-      // TERCEIRA PRIORIDADE: Verifica se o contato está bloqueado por 1 ano
+      // TERCEIRA PRIORIDADE: Verifica se o contato está bloqueado por 3 meses
       if (await this.conversationService.isContactBlockedForOneYear(number)) {
-        console.log(`🔒 Contato bloqueado por 1 ano: ${number}`);
+        console.log(`🔒 Contato bloqueado por 3 meses: ${number}`);
         return;
       }
 
